@@ -81,8 +81,7 @@ gulp.task('watch:css', function gulpTaskWatchCss() {
 
 gulp.task('watch:js', function gulpTaskWatchJs() {
     var sources = [
-        path.join(config.JS_SRC_DIR, '**/*.js'),
-        path.join(config.SVG_SRC_DIR, '**/*.svg')
+        path.join(config.JS_SRC_DIR, '**/*.js')
     ];
 
     return gulp.watch(sources, ['js']);

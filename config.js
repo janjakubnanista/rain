@@ -1,3 +1,5 @@
+'use strict';
+
 var path = require('path');
 var argv = require('yargs').argv;
 
@@ -12,7 +14,7 @@ module.exports = {
     BUILD_DIR: path.join(__dirname, 'build'),
     SASS_SRC_DIR: path.join(__dirname, 'src/scss'),
     SASS_BUILD_DIR: path.join(__dirname, 'build/css'),
-    JS_SRC_DIR: path.join(__dirname, 'src/js'),
+    JS_SRC_DIR: path.join(__dirname, 'src/js/client'),
     JS_BUILD_DIR: path.join(__dirname, 'build/js'),
 
     COMPRESS_CSS: isProduction,
