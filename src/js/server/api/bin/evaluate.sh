@@ -11,9 +11,8 @@ with_signum() {
 }
 
 SRC=$1
-DEST=$2
-X=$3
-Y=$4
+X=$2
+Y=$3
 R=2
 
 RR=$(expr $R \* 2)
@@ -34,7 +33,6 @@ REGEX="s/^$NUM,$NUM: ($NUM,$NUM,$NUM).*/$FORMAT/g"
 CROP="${CROPW}x${CROPH}$CROPX$CROPY"
 
 convert $SRC \
-    -colorspace RGB  \
     -crop $CROP +repage \
     -scale 1x1 \
     text:- | tail -n +2 | sed -e "$REGEX"
