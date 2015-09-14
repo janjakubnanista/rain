@@ -12,7 +12,8 @@
     "watch": "gulp watch",
     "clean": "rm -rf build",
     "prepublish": "HOME=${OPENSHIFT_REPO_DIR}; npm run clean && npm run build",
-    "test": "mocha test/**/*_test.js"
+    "test": "npm run test.backend",
+    "test.backend": "mocha test/**/*_test.js"
   },
   "repository": {
     "type": "git",
