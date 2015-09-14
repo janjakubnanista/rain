@@ -126,8 +126,8 @@ function getData(time) {
 
 function latLngToXY(lat, lng) {
     return {
-        x: 95.59367504 * lng - 1593.767468,
-        y: - 148.2418007 * lat + 7358.862704
+        x: 95.57836499 * lng - 1593.407956,
+        y: - 148.1929283 * lat + 7357.007776
     };
 }
 

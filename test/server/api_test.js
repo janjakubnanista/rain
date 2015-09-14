@@ -3,7 +3,7 @@
 var api = require('../../src/js/server/api');
 var expect = require('expect.js');
 
-var location = { lat: 49.406373, lng: 19.483884 };
+var location = { lat: 48.738403, lng: 19.157349 };
 var time = new Date();
 
 describe.only('API V2', function() {
