@@ -11,6 +11,7 @@ module.exports = {
     PORT: process.env.OPENSHIFT_NODEJS_PORT || 8080,
 
     LOG_DIR: path.join(__dirname, 'log'),
+    IMAGE_CACHE_DIR: path.join(__dirname, 'cache'),
     PUBLIC_DIR: path.join(__dirname, 'public'),
     BUILD_DIR: path.join(__dirname, 'build'),
     SASS_SRC_DIR: path.join(__dirname, 'src/scss'),
