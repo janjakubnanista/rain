@@ -63,7 +63,6 @@ REGEX="s/^$NUM,$NUM: ($NUM,$NUM,$NUM).*/$FORMAT/g"
 CROP="${CROPW}x${CROPH}$CROPX$CROPY"
 
 RGB=$(convert $SRC \
-    -depth 8 \
     -crop $CROP +repage \
     -scale 1x1 \
     text:- | tail -n +2 | sed -e "$REGEX")
