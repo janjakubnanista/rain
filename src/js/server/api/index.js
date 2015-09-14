@@ -18,13 +18,9 @@ function quantizeTime(time) {
     return quantizedTime.format('DDMMYYYY-HH');
 }
 
-function getJSON(filePath) {
-    return JSON.parse(fs.readFileSync(filePath));
-}
-
 function getCachedPath(time) {
     var quantizedTime = quantizeTime(time);
-    var cachedPath = quantizedTime + '.json';
+    var cachedPath = quantizedTime + '.png';
 
     return path.join(config.DATA_CACHE_DIR, cachedPath);
 }
@@ -60,9 +56,9 @@ function getImageFromSHMU(time) {
     });
 }
 
-function compareImage(imagePath) {
+function diffImage(imagePath) {
     var referencePath = path.join(__dirname, 'res', 'reference.png');
-    var processedPath = temp.openSync({ suffix: '.json' }).path;
+    var processedPath = temp.openSync({ suffix: '.png' }).path;
     var command = [
         path.join(__dirname, 'bin/compare.sh'),
         referencePath,
@@ -75,16 +71,17 @@ function compareImage(imagePath) {
     });
 }
 
-function evaluateImage(imagePath) {
-    var evaluatedPath = temp.openSync({ suffix: '.json' }).path;
+function evaluateImage(imagePath, x, y) {
+    var binsPath = path.join(__dirname, 'res', 'bins.txt');
     var command = [
-        path.join(__dirname, 'bin/evaluate.js'),
+        path.join(__dirname, 'bin/evaluate.sh'),
         imagePath,
-        evaluatedPath
+        binsPath,
+        x, y
     ].join(' ');
 
-    return q.nfcall(exec, command).then(function() {
-        return evaluatedPath;
+    return q.nfcall(exec, command).then(function(value) {
+        return parseFloat(value);
     });
 }
 
@@ -115,15 +112,11 @@ function getData(time) {
     return getImageFromSHMU(time).then(function downloadSuccessful(downloadPath) {
         filesToDelete.push(downloadPath);
 
-        return compareImage(downloadPath);
-    }).then(function comparingSuccessful(comparedPath) {
-        filesToDelete.push(comparedPath);
+        return diffImage(downloadPath);
+    }).then(function diffSuccessful(diffedPath) {
+        filesToDelete.push(diffedPath);
 
-        return evaluateImage(comparedPath);
-    }).then(function evaluationSuccessful(evaluatedPath) {
-        filesToDelete.push(evaluatedPath);
-
-        return cacheData(time, evaluatedPath);
+        return cacheData(time, diffedPath);
     }).fin(function deleteIntermediaryFiles() {
         logger.log('info', 'Removing intermediary files: %s', filesToDelete.join(', '));
 
@@ -140,36 +133,9 @@ function latLngToXY(lat, lng) {
 
 function getDataAtLatLng(time, lat, lng) {
     var coords = latLngToXY(lat, lng);
-    var cellSize = 3;
-    var x;
-    var y;
-    var x0 = Math.round(coords.x - cellSize / 2);
-    var y0 = Math.round(coords.y - cellSize / 2);
-    var x1 = Math.round(coords.x + cellSize / 2);
-    var y1 = Math.round(coords.y + cellSize / 2);
 
-    var t0;
-
-    return getData(time).then(function(dataPath) {
-        t0 = Date.now();
-        
-        return getJSON(dataPath);
-    }).then(function(data) {
-        var t1 = Date.now();
-        console.log('time', t1 - t0);
-
-        var area = data.filter(function(pixel) {
-            x = pixel.x;
-            y = pixel.y;
-
-            return (x >= x0 && x <= x1) && (y >= y0 && y <= y1);
-        });
-
-        var average = area.reduce(function(sum, pixel) {
-            return sum + pixel.v;
-        }, 0) / area.length;
-
-        return average;
+    return getData(time).then(function(diffedPath) {
+        return evaluateImage(diffedPath, Math.round(coords.x), Math.round(coords.y));
     });
 }
 

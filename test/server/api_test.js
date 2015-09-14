@@ -7,6 +7,8 @@ var location = { lat: 49.406373, lng: 19.483884 };
 var time = new Date();
 
 describe.only('API V2', function() {
+    this.timeout(10000);
+
     it('should throw an error if first parameter is not a number', function() {
         expect(function() {
             api.atCoordinates(time, null, 42, function() {});
