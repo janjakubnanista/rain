@@ -5,4 +5,4 @@ time ./src/js/server/api/bin/download.sh http://www.shmu.sk/data/datanwp/zrazky/
 
 time ./src/js/server/api/bin/compare.sh ./src/js/server/api/res/reference.png downloaded.png difference.png
 
-time ./src/js/server/api/bin/evaluate.sh ./difference.png 229 123
+time ./src/js/server/api/bin/evaluate.sh ./difference.png ./src/js/server/api/res/bins.txt 229 123
