@@ -1,97 +1,186 @@
 'use strict';
 
+var exec = require('child_process').exec;
+var fs = require('fs');
+var logger = require('../logger').processing;
+var moment = require('moment');
+var path = require('path');
 var q = require('q');
-var imagemagick = require('imagemagick');
-var loader = require('./loader');
+var temp = require('temp');
+var url = require('url');
 
-// Values in mm/3h
-var BINS = [
-    { r: 255, g: 255, b: 255, value: 0.00 },
-    { r: 226, g: 226, b: 226, value: 0.25 },
-    { r: 188, g: 188, b: 188, value: 0.50 },
-    { r: 166, g: 254, b: 255, value: 1.00 },
-    { r: 7, g: 189, b: 255, value: 2.00 },
-    { r: 46, g: 130, b: 255, value: 3.00 },
-    { r: 140, g: 255, b: 144, value: 5.00 },
-    { r: 86, g: 214, b: 125, value: 10.00 },
-    { r: 85, g: 170, b: 0, value: 15.00 },
-    { r: 0, g: 116, b: 0, value: 20.00 },
-    { r: 214, g: 255, b: 33, value: 25.00 },
-    { r: 248, g: 255, b: 41, value: 30.00 },
-    { r: 255, g: 229, b: 29, value: 35.00 },
-    { r: 255, g: 170, b: 127, value: 40.00 },
-    { r: 255, g: 85, b: 0, value: 45.00 },
-    { r: 255, g: 0, b: 0, value: 50.00 },
-    { r: 200, g: 0, b: 0, value: 60.00 },
-    { r: 160, g: 0, b: 0, value: 100.00 },
-    { r: 116, g: 0, b: 0, value: 200.00 },
-    { r: 85, g: 0, b: 127, value: 300.00 }
-];
+var config = require('../../../../config');
 
-// FIXME These numbers do not represent current image dimensions
+function quantizeTime(time) {
+    var quantizedTime = moment(time);
+    quantizedTime.hours(quantizedTime.hours() - quantizedTime.hours() % 3);
+
+    return quantizedTime.format('DDMMYYYY-HH');
+}
+
+function getJSON(filePath) {
+    return JSON.parse(fs.readFileSync(filePath));
+}
+
+function getCachedPath(time) {
+    var quantizedTime = quantizeTime(time);
+    var cachedPath = quantizedTime + '.json';
+
+    return path.join(config.DATA_CACHE_DIR, cachedPath);
+}
+
+function getSHMUUrl(time) {
+    var quantizedTime = quantizeTime(time);
+    var imageUrlName = 'zrazky_' + quantizedTime + '.png';
+
+    return url.format({
+        protocol: 'http',
+        hostname: 'www.shmu.sk',
+        pathname: path.join('data/datanwp/zrazky/', imageUrlName)
+    });
+}
+
+function getCached(time) {
+    var cachedPath = getCachedPath(time);
+
+    return fs.existsSync(cachedPath) ? cachedPath : null;
+}
+
+function getImageFromSHMU(time) {
+    var imageURL = getSHMUUrl(time);
+    var downloadPath = temp.openSync({ suffix: '.png' }).path;
+    var command = [
+        path.join(__dirname, 'bin/download.sh'),
+        imageURL,
+        downloadPath
+    ].join(' ');
+
+    return q.nfcall(exec, command).then(function() {
+        return downloadPath;
+    });
+}
+
+function compareImage(imagePath) {
+    var referencePath = path.join(__dirname, 'res', 'reference.png');
+    var processedPath = temp.openSync({ suffix: '.json' }).path;
+    var command = [
+        path.join(__dirname, 'bin/compare.sh'),
+        referencePath,
+        imagePath,
+        processedPath
+    ].join(' ');
+
+    return q.nfcall(exec, command).then(function() {
+        return processedPath;
+    });
+}
+
+function evaluateImage(imagePath) {
+    var evaluatedPath = temp.openSync({ suffix: '.json' }).path;
+    var command = [
+        path.join(__dirname, 'bin/evaluate.js'),
+        imagePath,
+        evaluatedPath
+    ].join(' ');
+
+    return q.nfcall(exec, command).then(function() {
+        return evaluatedPath;
+    });
+}
+
+function cacheData(time, dataPath) {
+    var cachedPath = getCachedPath(time);
+    var data = fs.readFileSync(dataPath);
+
+    fs.writeFileSync(cachedPath, data);
+
+    return cachedPath;
+}
+
+function getData(time) {
+    var formattedTime = moment(time).format('YYYY-MM-DD HH:mm');
+    logger.log('info', 'Getting data for %s', formattedTime);
+
+    var cachedPath = getCached(time);
+    if (cachedPath) {
+        logger.log('info', 'Returning cached data for %s', formattedTime);
+
+        return q(cachedPath);
+    }
+
+    logger.log('info', 'Fetching fresh data for %s', formattedTime);
+
+    var filesToDelete = [];
+
+    return getImageFromSHMU(time).then(function downloadSuccessful(downloadPath) {
+        filesToDelete.push(downloadPath);
+
+        return compareImage(downloadPath);
+    }).then(function comparingSuccessful(comparedPath) {
+        filesToDelete.push(comparedPath);
+
+        return evaluateImage(comparedPath);
+    }).then(function evaluationSuccessful(evaluatedPath) {
+        filesToDelete.push(evaluatedPath);
+
+        return cacheData(time, evaluatedPath);
+    }).fin(function deleteIntermediaryFiles() {
+        logger.log('info', 'Removing intermediary files: %s', filesToDelete.join(', '));
+
+        filesToDelete.map(fs.unlinkSync.bind(fs));
+    });
+}
+
 function latLngToXY(lat, lng) {
     return {
-        x: 95.59367504 * lng - 1583.767468,
-        y: - 148.2418007 * lat + 7398.862704
+        x: 95.59367504 * lng - 1593.767468,
+        y: - 148.2418007 * lat + 7358.862704
     };
 }
 
-function toRGB(string) {
-    var values = string.trim().split(',');
-
-    return {
-        r: values[0],
-        g: values[1],
-        b: values[2]
-    };
-}
-
-function toValue(rgb) {
-    return BINS.reduce(function(closest, bin) {
-        var dr = bin.r - rgb.r;
-        var dg = bin.g - rgb.g;
-        var db = bin.b - rgb.b;
-
-        var distance = Math.sqrt(dr * dr + dg * dg + db * db);
-
-        if (distance < closest.distance) return { distance: distance, value: bin.value };
-
-        return closest;
-    }, { distance: Number.MAX_VALUE }).value;
-}
-
-function getData(time, lat, lng) {
+function getDataAtLatLng(time, lat, lng) {
     var coords = latLngToXY(lat, lng);
-    var cellSize = 4;
-    var x = Math.max(0, coords.x - cellSize / 2);
-    var y = Math.max(0, coords.y - cellSize / 2);
-    var dx = Math.min(cellSize, 600 - x);
-    var dy = Math.min(cellSize, 370 - x);
+    var cellSize = 3;
+    var x;
+    var y;
+    var x0 = Math.round(coords.x - cellSize / 2);
+    var y0 = Math.round(coords.y - cellSize / 2);
+    var x1 = Math.round(coords.x + cellSize / 2);
+    var y1 = Math.round(coords.y + cellSize / 2);
 
-    return loader.load(time).then(function(imagePath) {
-        var command = [
-            imagePath,
-            '-crop', dx + 'x' + dy + '+' + x + '+' + y,
-            '-scale', '1x1',
-            '-format', '%[fx:int(255*r+.5)],%[fx:int(255*g+.5)],%[fx:int(255*b+.5)]',
-            'info:-'
-        ];
+    var t0;
 
-        return q.ninvoke(imagemagick, 'convert', command).then(function(output) {
-            var rgb = toRGB(output[0]);
-            var value = toValue(rgb);
+    return getData(time).then(function(dataPath) {
+        t0 = Date.now();
+        
+        return getJSON(dataPath);
+    }).then(function(data) {
+        var t1 = Date.now();
+        console.log('time', t1 - t0);
 
-            return value;
+        var area = data.filter(function(pixel) {
+            x = pixel.x;
+            y = pixel.y;
+
+            return (x >= x0 && x <= x1) && (y >= y0 && y <= y1);
         });
+
+        var average = area.reduce(function(sum, pixel) {
+            return sum + pixel.v;
+        }, 0) / area.length;
+
+        return average;
     });
 }
 
 exports.preload = function(time) {
-    return loader.load(time);
+    return getData(time);
 };
 
 exports.clearCache = function() {
-    return loader.clear();
+    fs.readdirSync(config.DATA_CACHE_DIR).forEach(function(fileName) {
+        fs.unlinkSync(path.join(config.DATA_CACHE_DIR, fileName));
+    });
 };
 
 exports.atCoordinates = function(time, lat, lng) {
@@ -101,5 +190,5 @@ exports.atCoordinates = function(time, lat, lng) {
     if (lat < 47.6 || lat > 49.6) throw new Error('Latitude out of bounds, got ' + lat);
     if (lng < 16.7 || lng > 22.7) throw new Error('Longitude out of bounds, got ' + lng);
 
-    return getData(time, lat, lng);
+    return getDataAtLatLng(time, lat, lng);
 };

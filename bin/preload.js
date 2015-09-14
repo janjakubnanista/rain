@@ -11,12 +11,13 @@ var q = require('q');
 
 function preloader(date) {
     return function() {
-        return api.preload(date);
+        return api.preload(date).then(function(dataPath) {
+            logger.log('info', 'Preloaded file %s', dataPath);
+        });
     };
 }
 
 logger.log('info', 'Clearing cache before preload');
-
 api.clearCache();
 
 var promise = q();
@@ -27,6 +28,6 @@ for (var i = 0; i < numPeriods; i++) {
 
 promise.done(function() {
     logger.log('info', 'Preload complete');
-}, function() {
-    logger.log('error', 'Preload failed');
+}, function(error) {
+    logger.log('error', 'Preload failed', { error: error && error.message, stack: error && error.stack });
 });
