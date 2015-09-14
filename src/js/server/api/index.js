@@ -28,6 +28,7 @@ var BINS = [
     { r: 85, g: 0, b: 127, value: 300.00 }
 ];
 
+// FIXME These numbers do not represent current image dimensions
 function latLngToXY(lat, lng) {
     return {
         x: 95.59367504 * lng - 1583.767468,
