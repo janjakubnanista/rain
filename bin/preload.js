@@ -2,6 +2,8 @@
 
 'use strict';
 
+require('./setup');
+
 var api = require('../src/js/server/api');
 var logger = require('../src/js/server/logger').processing;
 var moment = require('moment');
