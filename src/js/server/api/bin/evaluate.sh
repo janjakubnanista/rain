@@ -1,70 +1,58 @@
 #!/bin/bash
 
-# Returns the number with explicit + sign if it's non-negative
-with_signum() {
-    SIGN=
-    if [ "$1" -ge 0 ]; then
-        SIGN=+
+# Bins for RGB -> mm rain/3hrs conversion
+read -r -d '' BINS << EOM
+255,255,255,0.00
+226,226,226,0.25
+188,188,188,0.50
+166,254,255,1.00
+7,189,255,2.00
+46,130,255,3.00
+140,255,144,5.00
+86,214,125,10.00
+85,170,0,15.00
+0,116,0,20.00
+214,255,33,25.00
+248,255,41,30.00
+255,229,29,35.00
+255,170,127,40.00
+255,85,0,45.00
+255,0,0,50.00
+200,0,0,60.00
+160,0,0,100.00
+116,0,0,200.00
+85,0,127,300.00
+EOM
+
+# RGB value of a pixel prefixed with coordinates
+IFS=',' read -a XYRGB <<< "$1"
+X=${XYRGB[0]}
+Y=${XYRGB[1]}
+R=${XYRGB[2]}
+G=${XYRGB[3]}
+B=${XYRGB[4]}
+
+# Initial value for distance in RGB space
+MIND=99999999
+
+# Value in mm/3h
+VALUE=0.00
+
+while IFS=',' read -a TESTED; do
+    TR=${TESTED[0]}
+    TG=${TESTED[1]}
+    TB=${TESTED[2]}
+    TV=${TESTED[3]}
+
+    DR=$(expr \( $TR \- $R \) \* \( $TR \- $R \))
+    DG=$(expr \( $TG \- $G \) \* \( $TG \- $G \))
+    DB=$(expr \( $TB \- $B \) \* \( $TB \- $B \))
+    D=$(expr $DR \+ $DG \+ $DB)
+
+    if [ "$D" -lt "$MIND" ]; then
+        MIND=$D
+        VALUE=$TV
     fi
+done <<< "$BINS"
 
-    echo "$SIGN$1"
-}
-
-value_of() {
-    IFS=',' read -a PROBE <<< "$1"
-    PR=${PROBE[0]}
-    PG=${PROBE[1]}
-    PB=${PROBE[2]}
-
-    MIND=99999999
-    MINV=
-
-    while IFS=',' read -a TESTED; do
-        TR=${TESTED[0]}
-        TG=${TESTED[1]}
-        TB=${TESTED[2]}
-        TV=${TESTED[3]}
-
-        DR=$(expr \( $TR \- $PR \) \* \( $TR \- $PR \))
-        DG=$(expr \( $TG \- $PG \) \* \( $TG \- $PG \))
-        DB=$(expr \( $TB \- $PB \) \* \( $TB \- $PB \))
-        D=$(expr $DR \+ $DG \+ $DB)
-
-        if [ "$D" -lt "$MIND" ]; then
-            MIND=$D
-            MINV=$TV
-        fi
-    done < $BINS
-
-    echo $MINV
-}
-
-SRC=$1
-BINS=$2
-X=$3
-Y=$4
-R=2
-
-RR=$(expr $R \* 2)
-X0=$(expr $X \- $R)
-Y0=$(expr $Y \- $R)
-
-CROPW=$RR
-CROPH=$RR
-CROPX=$(with_signum $X0)
-CROPY=$(with_signum $Y0)
-
-# SED matching stuff
-NUM='\([0-9]\{1,\}\)'
-FORMAT='\3,\4,\5'
-REGEX="s/^$NUM,$NUM: ($NUM,$NUM,$NUM).*/$FORMAT/g"
-
-# Crop geometry
-CROP="${CROPW}x${CROPH}$CROPX$CROPY"
-
-RGB=$(convert $SRC \
-    -crop $CROP +repage \
-    -scale 1x1 \
-    text:- | tail -n +2 | sed -e "$REGEX")
-
-value_of $RGB
+echo "$X,$Y,$VALUE"

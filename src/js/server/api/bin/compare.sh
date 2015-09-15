@@ -2,7 +2,6 @@
 
 A=$1
 B=$2
-DEST=$3
 
 # ImageMagick params
 BLUR=6x2
@@ -10,6 +9,7 @@ BLUR=6x2
 # SED matching stuff
 NUM='\([0-9]\{1,\}\)'
 FORMAT='{"x":\1,"y":\2,"v":[\3,\4,\5]},'
+FORMAT='\1,\2,\3,\4,\5'
 REGEX="s/^$NUM,$NUM: ($NUM,$NUM,$NUM).*/$FORMAT/g"
 
 convert \
@@ -18,4 +18,4 @@ convert \
     -compose difference -composite \
     -negate -selective-blur 12x4+08% \
     -shave 10x40 \
-    $DEST
+    text:- | tail -n +2 | sed -e "$REGEX"
