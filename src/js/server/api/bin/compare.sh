@@ -18,4 +18,4 @@ convert \
     -compose difference -composite \
     -negate -selective-blur 12x4+08% \
     -shave 10x40 \
-    text:- | tail -n +2 | sed -e "$REGEX"
+    text:- | tail -n +2 | head -n 200 | sed -e "$REGEX"
