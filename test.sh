@@ -9,4 +9,6 @@ RESULT=cache/15092015-09.txt
 # Download first
 time $BIN/download.sh $SOURCE $DOWNLOADED
 
-$BIN/compare.sh $REFERENCE $DOWNLOADED | xargs -L 1 $BIN/evaluate.sh > $RESULT
+time $BIN/analyse.sh $REFERENCE $DOWNLOADED > $RESULT
+
+# $BIN/compare.sh $REFERENCE $DOWNLOADED | xargs -L 1 $BIN/evaluate.sh > $RESULT
