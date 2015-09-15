@@ -37,43 +37,10 @@ read -r -d '' BINS << EOM
 EOM
 
 # Get RGB info from image
-LINES=$(convert \
+convert \
     $A -gaussian-blur $BLUR \
     $B -gaussian-blur $BLUR \
     -compose difference -composite \
     -negate -selective-blur 12x4+08% \
     -shave 10x40 \
-    text:- | tail -n +2 | head -n 20 | sed -e "$REGEX")
-
-while IFS=',' read -a XYRGB; do
-    X=${XYRGB[0]}
-    Y=${XYRGB[1]}
-    R=${XYRGB[2]}
-    G=${XYRGB[3]}
-    B=${XYRGB[4]}
-
-    # Initial value for distance in RGB space
-    MIND=99999999
-
-    # Value in mm/3h
-    VALUE=0.00
-
-    while IFS=',' read -a TESTED; do
-        TR=${TESTED[0]}
-        TG=${TESTED[1]}
-        TB=${TESTED[2]}
-        TV=${TESTED[3]}
-
-        DR=$(expr \( $TR \- $R \) \* \( $TR \- $R \))
-        DG=$(expr \( $TG \- $G \) \* \( $TG \- $G \))
-        DB=$(expr \( $TB \- $B \) \* \( $TB \- $B \))
-        D=$(expr $DR \+ $DG \+ $DB)
-
-        if [ "$D" -lt "$MIND" ]; then
-            MIND=$D
-            VALUE=$TV
-        fi
-    done <<< "$BINS"
-
-    echo "$X,$Y,$VALUE"
-done <<< "$LINES"
+    text:- | tail -n +2 | head -n 20 | sed -e "$REGEX"
