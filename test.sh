@@ -11,4 +11,6 @@ time $BIN/download.sh $SOURCE $DOWNLOADED
 
 # time $BIN/analyse.sh $REFERENCE $DOWNLOADED > $RESULT
 
-time $BIN/compare.sh $REFERENCE $DOWNLOADED | xargs -L 1 $BIN/evaluate.js
+time $BIN/analyse.js $REFERENCE $DOWNLOADED
+
+# time $BIN/compare.sh $REFERENCE $DOWNLOADED | xargs -L 1 $BIN/evaluate.js
